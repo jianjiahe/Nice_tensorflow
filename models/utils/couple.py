@@ -42,9 +42,9 @@ def couple(inputs, name='couple', mask_config=0, reverse=False):
         on, off = h[:, :, 0], h[:, :, 1]
     else:
         off, on = h[:, :, 0], h[:, :, 1]
-    off_ = in_block(off, name=name)
-    off_ = mid_block(off_, name=name)
-    shift = out_block(off_, name=name)
+    off_ = in_block(off, name=name+'_in_block')
+    off_ = mid_block(off_, name=name+'_mid_block')
+    shift = out_block(off_, name=name+'_out_block')
 
     if reverse:
         on = on - shift
@@ -56,3 +56,20 @@ def couple(inputs, name='couple', mask_config=0, reverse=False):
     else:
         x = tf.stack((off, on), dim=2, name=name + '_stack')
     return tf.reshape(x, [B, W], name=name+'_reshape_1')
+
+
+def couple_layer(inputs, couple_layers, mask_config, name='couple_layer', generate=True):
+    if generate:
+        reverse = True
+        reuse = False
+        layer_index = reversed(range(couple_layers))
+    else:
+        reverse = False
+        reuse = True
+        layer_index = range(couple_layers)
+
+    with tf.variable_scope(name, reuse=reuse):
+        for i in layer_index:
+            inputs = couple(inputs, name='couple' + str(i), mask_config=mask_config, reverse=reverse)
+
+    return inputs
