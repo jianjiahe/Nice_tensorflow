@@ -12,9 +12,10 @@ class DataBasic:
 
 class TrainBasic:
     optimizer = 'adam'
-    batch_size = 32
+    batch_size = 200
     dataset = 'biaobei'
     runname = ''
+    checkpoint_dir = '/home/the/Projects/cache/nice/checkpoints'
 
 
 

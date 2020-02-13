@@ -28,7 +28,7 @@ print("Testing data size: ", mnist.test.num_examples)
 # print("Example training data label: ", mnist.train.labels[0])
 train_data = mnist.train.images
 train_data_mean = np.mean(train_data, axis=0)
-print(train_data_mean.shape) # (60000, 784)
+print(train_data_mean.shape)
 # np.save(train_data_mean, './mnist_mean.npy', allow_pickle=False)
 # with open(os.path.join(ROOTDIR, 'train-images-idx3-ubyte.gz')) as f:
 #     loaded = np.fromfile(file=f, dtype=np.uint8)

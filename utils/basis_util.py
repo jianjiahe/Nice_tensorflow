@@ -6,6 +6,67 @@ import numpy as np
 import tensorflow as tf
 from functools import reduce
 from tensorflow.contrib import graph_editor as ge
+import os
+from config import TrainBasic
+
+"""Standard logistic distribution.
+"""
+
+
+def softplus(x):
+    return tf.log(1. + tf.exp(x))
+
+
+class StandardLogistic:
+    # def __init__(self):
+    #     super(StandardLogistic, self).__init__()
+
+    def log_prob(self, x):
+        """Computes data log-likelihood.
+
+        Args:
+            x: input tensor.
+        Returns:
+            log-likelihood.
+        """
+        return -(tf.nn.softplus(x) + tf.nn.softplus(-x))
+
+    def sample(self, size):
+        """Samples from the distribution.
+
+        Args:
+            size: number of samples to generate.
+        Returns:
+            samples.
+        """
+        z = np.random.uniform(0., 1., size)
+        return np.log(z) - np.log(1. - z)
+
+
+def check_restore_params(saver, sess, run_name, corpus_name=TrainBasic.dataset):
+    """
+    if checkpoints exits in the give path, then restore the parameters and return True
+
+    :param saver: tf.train.Saver
+    :param sess: tf.Session
+    :param run_name: directory name of the checkpoints
+    :param corpus_name: corpus name
+    :return: boolean, return true if checkpoints found else False
+    """
+    directory = os.path.join(TrainBasic.checkpoint_dir, corpus_name, run_name, '')
+    print('')
+    print('')
+    print(directory)
+    print('')
+    print('')
+    checkpoint = tf.train.get_checkpoint_state(directory)
+    if checkpoint and checkpoint.model_checkpoint_path:
+        logging.info('Restoring checkpoints...')
+        saver.restore(sess, checkpoint.model_checkpoint_path)
+        return True
+    else:
+        logging.info('No checkpoint found, use initialized parameters.')
+        return False
 
 
 def check_op_name(regex='Block./layer.*/concat.*'):

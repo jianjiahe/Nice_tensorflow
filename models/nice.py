@@ -1,4 +1,4 @@
-from config import ModelBasic
+from config import ModelBasic, TrainBasic
 import tensorflow as tf
 import numpy as np
 from models.utils.couple import couple_layer
@@ -12,16 +12,18 @@ class Nice:
                  mid_dim = ModelBasic.mid_dim,
                  hidden_dim=ModelBasic.hidden_dim,
                  mask_config=ModelBasic.mask_config,
+                 batch_size=TrainBasic.batch_size,
                  training=False):
         self._training = training
         # self.in_out_dim = ModelBasic.in_out_dim
         # self.mid_dim = ModelBasic.mid_dim
         # self.hidden = ModelBasic.hidden_dim
+        self.batch_size = batch_size
         self.prior = prior
         self.couple_layers = couple_layers
         self.in_out_dim = in_out_dim
         self.mid_dim = mid_dim
-        self.hidden = hidden_dim
+        self.hidden_dim = hidden_dim
         self.mask_config = mask_config
 
     def scaling(self, z, generate=False):
@@ -39,10 +41,6 @@ class Nice:
             return z, log_det_J
 
 
-
-
-
-
     def generate(self, z):
         """Transformation g: Z -> X (inverse of f).
 
@@ -52,7 +50,7 @@ class Nice:
             transformed tensor in data space X.
         """
         x, _ = self.scaling(z, generate=True)
-        x = couple_layer(x, self.couple_layers, self.mask_config, name='couple_layer', generate=True)
+        x = couple_layer(x, self.batch_size, self.couple_layers, self.in_out_dim, self.mid_dim, self.hidden_dim, self.mask_config, name='couple_layer', generate=True)
         return x
 
     def inv_generate(self, x):
@@ -63,9 +61,8 @@ class Nice:
         Returns:
             transformed tensor in latent space Z.
         """
-        z = couple_layer(x, self.couple_layers, self.mask_config, name='couple_layer', generate=False)
-        z = self.scaling(z, generate=False)
-        return z
+        z = couple_layer(x, self.batch_size, self.couple_layers, self.in_out_dim, self.mid_dim, self.hidden_dim, self.mask_config, name='couple_layer', generate=False)
+        return self.scaling(z, generate=False)
 
     def log_prob(self, x):
         """Computes data log-likelihood.
@@ -78,7 +75,7 @@ class Nice:
             log-likelihood of input.
         """
         z, log_det_J = self.inv_generate(x)
-        log_ll = tf.sum(self.prior.log_prob(z), dim=1)
+        log_ll = tf.reduce_sum(self.prior.log_prob(z), axis=1)
         return log_ll + log_det_J
 
     def infer(self, x):

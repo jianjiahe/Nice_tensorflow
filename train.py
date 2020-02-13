@@ -1,13 +1,20 @@
 import logging
 import os
+import sys
+import numpy as np
 import tensorflow as tf
+from time import time
+from tensorflow.python.client import timeline
+
 from tensorflow.examples.tutorials.mnist import input_data
 
 
-from utils.basis_util import basic_config, check_param_num
+from utils.basis_util import basic_config, check_param_num, check_restore_params, StandardLogistic
+from utils.batch import MiniBatch
+
 
 from models.nice import Nice
-from config import TrainBasic, DataBasic
+from config import TrainBasic, DataBasic, ModelBasic
 
 
 flags = tf.flags
@@ -23,7 +30,7 @@ flags.DEFINE_integer('warming_steps', 10000, 'step number for warming learning r
 flags.DEFINE_integer('summary_stride', 50, 'write summary every this epoch')
 flags.DEFINE_integer('corpus_size', 55000, 'the number of all items in the train corpus')  # 107104(8w, 7144,19960)
 flags.DEFINE_integer('batch_size', TrainBasic.batch_size, 'batch_size')
-flags.DEFINE_integer('epoch_num', 200, 'epoch number')
+flags.DEFINE_integer('epoch_num', 2000, 'epoch number')
 flags.DEFINE_string('corpus_name', TrainBasic.dataset, 'corpus name')
 # flags.DEFINE_integer('mel_filters', AudioBasic.num_mels, 'the number of mel-filters')
 # flags.DEFINE_integer('n_fft', AudioBasic.n_fft, 'the number of fft')
@@ -36,19 +43,22 @@ FLAGS = flags.FLAGS
 
 class Trainer:
     def __init__(self):
-        self.l2 = FLAGS.l2l2
+        self.l2 = FLAGS.l2
         self.optimizer_name = FLAGS.optimizer
         self.lr_start = FLAGS.lr_start
         self.lr_end = FLAGS.lr_end
         self.lr_const = FLAGS.lr_const
         self.warming_steps = FLAGS.warming_steps
         self.summary_stride = FLAGS.summary_stride
+        self.corpus_name = FLAGS.corpus_name
         self.corpus_size = FLAGS.corpus_size
         self.epoch_num = FLAGS.epoch_num
-        self.epoch_size = self.corpus_size // self.batch_size
+        self.run_name = FLAGS.run_name
         self.batch_size = FLAGS.batch_size
+        self.epoch_size = self.corpus_size // self.batch_size
+        self._training = True
 
-        self.mini_batch = input_data.read_data_sets(DataBasic.dataset_dir, one_hot=True).train
+        self.mini_batch = MiniBatch(batch_size=self.batch_size, training=self._training)
 
         self.loss, self.regularization_loss = None, None
 
@@ -94,11 +104,10 @@ class Trainer:
 
     def _gen(self):
         while True:
-            # yield self.mini_batch.next_batch()
-            yield  self.mini_batch.next_batch(self.batch_size)
+            yield self.mini_batch.next_batch()
 
     def _get_input_iterator(self):
-        inputs_shape = tf.TensorShape([None, None])
+        inputs_shape = tf.TensorShape([None, 784])
 
         train_data_set = tf.data.Dataset.from_generator(
             self._gen,
@@ -113,7 +122,10 @@ class Trainer:
         with tf.variable_scope('Loss'):
             self.loss = -tf.reduce_mean(self.log_prob)
 
-            tf.summary.scalar('loss', self.loss, collections=['loss'])
+            if self._training:
+                tf.summary.scalar('loss_train', self.loss, collections=['loss'])
+            else:
+                tf.summary.scalar('loss_validation', self.loss, collections=['loss'])
 
             self.regularization_loss = tf.add_n([tf.nn.l2_loss(v) for v in tf.trainable_variables()
                                                  if not ('bias' in v.name or 'Bias' in v.name)]) * self.l2
@@ -124,7 +136,13 @@ class Trainer:
         with tf.variable_scope('summaries'):
             self.merged_summary = tf.summary.merge_all(key=tf.GraphKeys.SUMMARIES)
             self.loss_summary = tf.summary.merge_all(key='loss')
-            self.writer = tf.summary.FileWriter(os.path.join(DatadirBasic.checkpoint_dir, self.corpus_name, self.run_name))
+            self.writer = tf.summary.FileWriter(os.path.join(TrainBasic.checkpoint_dir, self.corpus_name, self.run_name))
+
+    def _config_optimizer(self):
+        if self.optimizer_name == TrainBasic.Momentum:
+            return tf.train.MomentumOptimizer(learning_rate=self.lr, momentum=FLAGS.momentum, use_nesterov=True)
+        elif self.optimizer_name == TrainBasic.Adam:
+            return tf.train.AdamOptimizer(learning_rate=self.lr)
 
     def _create_optimizer(self):
         with tf.variable_scope('optimizer'):
@@ -145,6 +163,8 @@ class Trainer:
             with tf.control_dependencies(update_ops):
                 # self.optimizer = optimizer.minimize(self.loss, global_step=self.global_step)
                 self.optimizer = optimizer.apply_gradients(zip(clipped_gradients, variables),
+                                                           global_step=self.global_step)
+
 
     def _build_graph(self):
         self._config_step()
@@ -152,8 +172,14 @@ class Trainer:
         with tf.variable_scope('input'):
             self.inputs = self._get_input_iterator()
 
-        # TODO:input  need to get by batch.py
-        self.log_prob= Nice()
+        self.log_prob= Nice(prior=StandardLogistic(),
+                            batch_size=self.batch_size,
+                            couple_layers = ModelBasic.couple_layers,
+                            in_out_dim = ModelBasic.in_out_dim,
+                            mid_dim = ModelBasic.mid_dim,
+                            hidden_dim=ModelBasic.hidden_dim,
+                            mask_config=ModelBasic.mask_config,
+                            training=True).infer(self.inputs)
 
         self._create_loss()
         self._create_optimizer()
@@ -161,6 +187,13 @@ class Trainer:
         self.check_param()
 
         self.has_built = True
+
+    def _train_init(self, sess: tf.Session):
+        self.saver = tf.train.Saver()
+        self.writer.add_graph(sess.graph)
+        sess.run(self.train_iterator.initializer)
+        sess.run(tf.global_variables_initializer())
+        check_restore_params(self.saver, sess, self.run_name, corpus_name=self.corpus_name)
 
     def train_epoch(self):
         assert not self.has_built
@@ -171,7 +204,94 @@ class Trainer:
         sess_config.gpu_options.allow_growth = True
 
         with tf.Session(config=sess_config) as sess:
-    #        TODO
+            self._train_init(sess)
+            logging.info('Train start.')
+
+            # if time line: options run_metadata
+            options = None
+            run_metadata = None
+            if FLAGS.trace_time:
+                options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                run_metadata = tf.RunMetadata()
+
+            while True:
+                try:
+                    start_time = time()
+                    if FLAGS.trace_time:
+                        loss, step, epoch, ms, ls, _ = sess.run(
+                            [self.loss, self.global_step, self.global_epoch,
+                             self.merged_summary, self.loss_summary, self.optimizer],
+                            options=options, run_metadata=run_metadata
+                        )
+                        fetched_time_line = timeline.Timeline(run_metadata.step_stats)
+                        chrome_trace = fetched_time_line.generate_chrome_trace_format()
+                        if not os.path.exists('timeline/'):
+                            os.makedirs('timeline')
+                        with open('timeline/time_line_step_%d.json' % step, 'w') as f:
+                            f.write(chrome_trace)
+
+                    else:
+                        loss, step, epoch, ms, ls, _ = sess.run(
+                            [self.loss, self.global_step, self.global_epoch,
+                             self.merged_summary, self.loss_summary, self.optimizer]
+                        )
+
+                    self.writer.add_summary(ls, global_step=step)
+                    if step % self.summary_stride == 0:
+                        self.writer.add_summary(ms, global_step=step)
+
+                    if step % self.epoch_size == 0:
+                        bit_per_dim = (loss + np.log(256.) * ModelBasic.in_out_dim) \
+                                      / (ModelBasic.in_out_dim * np.log(2.))
+                        logging.info('Epoch {0} step {1}, Processed in {2:.2f}s, loss: {3}, bit_per_dim: {4}'.format(epoch,
+                                                                                                     step % self.epoch_size,
+                                                                                                     time() - start_time,
+                                                                                                     loss,
+                                                                                                     bit_per_dim))
+
+                    if step % self.epoch_size == 0 and epoch % 50 == 0:
+                        # if step % 1 == 0 and epoch % 1 == 0:
+                        # # validation
+                        # self._training = False
+                        # loss_val, step, epoch, ms, ls = sess.run([self.loss, self.global_step, self.global_epoch, self.merged_summary, self.loss_summary])
+                        # self._training = True
+                        # bit_per_dim = (loss_val + np.log(256.) * ModelBasic.in_out_dim) \
+                        #               / (ModelBasic.in_out_dim * np.log(2.))
+                        # logging.info(
+                        #     'Val: loss: {0}, bit_per_dim: {1}'.format(loss_val, bit_per_dim))
+
+                        self._save_checkpoint(sess)
+                        self._train_finalize()
+                        return step, epoch
+
+                except KeyboardInterrupt:
+                    logging.info('You terminate the program manually.')
+                    self._save_checkpoint(sess)
+                    sys.exit(0)
+
+    def _save_checkpoint(self, sess: tf.Session):
+        logging.info('Saving checkpoints...')
+        self.saver.save(sess, os.path.join(TrainBasic.checkpoint_dir, self.corpus_name, self.run_name, 'ckp'),
+                        global_step=self.global_step)
+        logging.info('Checkpoint saves.')
+
+    def _train_finalize(self):
+        tf.get_default_graph().finalize()
+        self.has_built = False
+
+    def evaluate(self, epoch, step):
+        pass
+        # validition_mini_batch = MiniBatch(corpus_name=self.corpus_name, datacsv_name=DatadirBasic.validitiondata_csv, batch_size=self.batch_size)
+        #
+        # infer = Infer(corpus_name=self.corpus_name, run_name=self.run_name,
+        #               mel_filters=self.mel_filters, n_fft=self.n_fft)
+        #
+        # # rest = list(set(range(1, 101)))
+        # # infer.synthesis_by_pinyinlist(rest)
+        #
+        # infer.synthesis('绿是阳春烟景,大块文章的底色, 四月的林峦,更是绿的鲜活,秀嫩.',
+        #                 wav_path=os.path.join(DatadirBasic.eval_dir, '{0}/epoch{1:0>3d}-step{2:0>6d}.wav'.format(self.run_name, epoch, step)))
+
 
     def main(self):
         while True:

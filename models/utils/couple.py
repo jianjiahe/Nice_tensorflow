@@ -28,7 +28,7 @@ def out_block(inputs, size, name='out_block', use_bias=True):
     return out
 
 
-def couple(inputs, name='couple', mask_config=0, reverse=False):
+def couple(inputs, batch_size, in_out_dim, mid_dim, hidden_dim, name='couple', mask_config=0, reverse=False):
     """couple_layer infer.
     Args:
         x: input tensor.
@@ -36,15 +36,17 @@ def couple(inputs, name='couple', mask_config=0, reverse=False):
     Returns:
         transformed tensor.
     """
-    [B, W] = tf.shape(inputs)
-    h = tf.reshape(inputs, [B, W // 2, 2], name=name+'_reshape_0')
+    B = batch_size
+    # B = inputs.get_shape().as_list()[0]
+    # [B, W] = tf.shape(inputs)
+    h = tf.reshape(inputs, [B, -1, 2], name=name+'_reshape_0')
     if mask_config:
         on, off = h[:, :, 0], h[:, :, 1]
     else:
         off, on = h[:, :, 0], h[:, :, 1]
-    off_ = in_block(off, name=name+'_in_block')
-    off_ = mid_block(off_, name=name+'_mid_block')
-    shift = out_block(off_, name=name+'_out_block')
+    off_ = in_block(off, mid_dim, name=name+'_in_block')
+    off_ = mid_block(off_, mid_dim, hidden_dim, sname=name+'_mid_block')
+    shift = out_block(off_, in_out_dim//2, name=name+'_out_block')
 
     if reverse:
         on = on - shift
@@ -55,21 +57,27 @@ def couple(inputs, name='couple', mask_config=0, reverse=False):
         x = tf.stack((on, off), dim=2, name=name + '_stack')
     else:
         x = tf.stack((off, on), dim=2, name=name + '_stack')
-    return tf.reshape(x, [B, W], name=name+'_reshape_1')
+    return tf.reshape(x, [B, -1], name=name+'_reshape_1')
 
 
-def couple_layer(inputs, couple_layers, mask_config, name='couple_layer', generate=True):
+def couple_layer(inputs, batch_size, couple_layers, in_out_dim, mid_dim, hidden_dim, mask_config, name='couple_layer', generate=True):
     if generate:
-        reverse = True
-        reuse = False
-        layer_index = reversed(range(couple_layers))
-    else:
         reverse = False
         reuse = True
         layer_index = range(couple_layers)
+    else:
+        reverse = True
+        reuse = False
+        layer_index = reversed(range(couple_layers))
 
+    # print()
+    print(name, 'reuse is ', reuse)
+    print('mask_config is ', mask_config)
+    for i in layer_index:
+        print('layer_index is ', i)
+    # print()
     with tf.variable_scope(name, reuse=reuse):
         for i in layer_index:
-            inputs = couple(inputs, name='couple' + str(i), mask_config=mask_config, reverse=reverse)
+            inputs = couple(inputs, batch_size, in_out_dim, mid_dim, hidden_dim, name='couple' + str(i), mask_config=mask_config, reverse=reverse)
 
     return inputs
