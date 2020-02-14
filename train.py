@@ -57,6 +57,8 @@ class Trainer:
         self.run_name = FLAGS.run_name
         self.batch_size = FLAGS.batch_size
         self.epoch_size = self.corpus_size // self.batch_size
+
+        self.checkpoint_dir = TrainBasic.checkpoint_dir
         self._training = True
 
         self.mini_batch = MiniBatch(batch_size=self.batch_size, training=self._training)
@@ -122,11 +124,12 @@ class Trainer:
     def _create_loss(self):
         with tf.variable_scope('Loss'):
             self.loss = -tf.reduce_mean(self.log_prob)
+            # self.loss = -self.log_prob
 
-            if self._training:
-                tf.summary.scalar('loss_train', self.loss, collections=['loss'])
-            else:
-                tf.summary.scalar('loss_validation', self.loss, collections=['loss'])
+            # if self._training:
+            tf.summary.scalar('loss_train', self.loss, collections=['loss'])
+            # else:
+            #     tf.summary.scalar('loss_validation', self.loss, collections=['loss'])
 
             self.regularization_loss = tf.add_n([tf.nn.l2_loss(v) for v in tf.trainable_variables()
                                                  if not ('bias' in v.name or 'Bias' in v.name)]) * self.l2
@@ -137,7 +140,7 @@ class Trainer:
         with tf.variable_scope('summaries'):
             self.merged_summary = tf.summary.merge_all(key=tf.GraphKeys.SUMMARIES)
             self.loss_summary = tf.summary.merge_all(key='loss')
-            self.writer = tf.summary.FileWriter(os.path.join(TrainBasic.checkpoint_dir, self.corpus_name, self.run_name))
+            self.writer = tf.summary.FileWriter(os.path.join(self.checkpoint_dir, self.corpus_name, self.run_name))
 
     def _config_optimizer(self):
         if self.optimizer_name == TrainBasic.Momentum:
@@ -175,9 +178,9 @@ class Trainer:
 
         self.log_prob= Nice(prior=StandardLogistic(),
                             batch_size=self.batch_size,
-                            couple_layers = ModelBasic.couple_layers,
-                            in_out_dim = ModelBasic.in_out_dim,
-                            mid_dim = ModelBasic.mid_dim,
+                            couple_layers=ModelBasic.couple_layers,
+                            in_out_dim=ModelBasic.in_out_dim,
+                            mid_dim=ModelBasic.mid_dim,
                             hidden_dim=ModelBasic.hidden_dim,
                             mask_config=ModelBasic.mask_config,
                             training=True).infer(self.inputs)
@@ -260,7 +263,6 @@ class Trainer:
                                       / (ModelBasic.in_out_dim * np.log(2.))
                         logging.info(
                             'Val: loss: {0}, bit_per_dim: {1}'.format(loss_val, bit_per_dim))
-                        #TODO: evalution
 
 
                         self._save_checkpoint(sess)
@@ -283,10 +285,7 @@ class Trainer:
         self.has_built = False
 
     def evaluate(self, epoch, step):
-        infer = Infer(corpus_name=self.corpus_name,
-                          run_name=self.run_name,
-                          sample_num=self.batch_size,
-                          sample_dim=self.in_out_dim)
+        infer = Infer(corpus_name=self.corpus_name, run_name=self.run_name, sample_num=TrainBasic.eval_size, sample_dim=ModelBasic.in_out_dim)
 
         infer.generate(epoch, step)
         # validition_mini_batch = MiniBatch(corpus_name=self.corpus_name, datacsv_name=DatadirBasic.validitiondata_csv, batch_size=self.batch_size)

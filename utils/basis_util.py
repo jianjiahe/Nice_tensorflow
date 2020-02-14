@@ -18,8 +18,8 @@ def softplus(x):
 
 
 class StandardLogistic:
-    # def __init__(self):
-    #     super(StandardLogistic, self).__init__()
+    def __init__(self):
+        super(StandardLogistic, self).__init__()
 
     def log_prob(self, x):
         """Computes data log-likelihood.
@@ -31,7 +31,8 @@ class StandardLogistic:
         """
         return -(tf.nn.softplus(x) + tf.nn.softplus(-x))
 
-    def sample(self, size):
+    @staticmethod
+    def sample(size):
         """Samples from the distribution.
 
         Args:

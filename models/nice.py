@@ -1,4 +1,5 @@
 from config import ModelBasic, TrainBasic
+from utils.basis_util import StandardLogistic
 import tensorflow as tf
 import numpy as np
 from models.utils.couple import couple_layer
@@ -6,7 +7,7 @@ from models.utils.couple import couple_layer
 
 class Nice:
     def __init__(self,
-                 prior,
+                 prior=StandardLogistic(),
                  couple_layers = ModelBasic.couple_layers,
                  in_out_dim = ModelBasic.in_out_dim,
                  mid_dim = ModelBasic.mid_dim,
@@ -28,7 +29,8 @@ class Nice:
 
     def scaling(self, z, generate=False):
         reuse = generate
-        with tf.variable_scope('ScaleLayer', reuse=reuse):
+        # with tf.variable_scope('ScaleLayer', reuse=tf.AUTO_REUSE):
+        with tf.variable_scope('ScaleLayer'):
             self.scale = tf.get_variable('scale',
                                          [1, self.in_out_dim],
                                          # initializer=np.zeros([1, self.in_out_dim],
@@ -60,8 +62,8 @@ class Nice:
         Returns:
             transformed tensor in latent space Z.
         """
-        z = couple_layer(x, self.batch_size, self.couple_layers, self.in_out_dim, self.mid_dim, self.hidden_dim, self.mask_config, name='couple_layer', generate=False)
-        return self.scaling(z, generate=False)
+        h = couple_layer(x, self.batch_size, self.couple_layers, self.in_out_dim, self.mid_dim, self.hidden_dim, self.mask_config, name='couple_layer', generate=False)
+        return self.scaling(h, generate=False)
 
     def log_prob(self, x):
         """Computes data log-likelihood.

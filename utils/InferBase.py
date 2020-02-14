@@ -17,9 +17,9 @@ class InferBase:
     def _build_graph(self):
         tf.reset_default_graph()
         with tf.variable_scope('evaluation_data'):
-            self.inputs = tf.placeholder(tf.int32, shape=[None, 784])
+            self.inputs = tf.placeholder(tf.float32, shape=[None, 784])
 
-        self.flow_out = Nice(training=False).generate(self.inputs)
+        self.flow_out = Nice(training=False, batch_size=TrainBasic.batch_size).generate(self.inputs)
 
         self.writer = tf.summary.FileWriter(os.path.join(TrainBasic.checkpoint_dir, self.corpus_name, self.run_name))
 

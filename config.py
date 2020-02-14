@@ -4,6 +4,7 @@ class ModelBasic:
     mid_dim = 1000
     hidden_dim = 5
     mask_config = 1
+    # mask_config = 0
 
 
 class DataBasic:
@@ -15,6 +16,7 @@ class TrainBasic:
     dataset = 'biaobei'
     latent = 'logistic'
     batch_size = 200
+    eval_size = 16
     runname = ''
     checkpoint_dir = '/home/the/Projects/cache/nice/checkpoints'
     filename = '%s_' % dataset \
