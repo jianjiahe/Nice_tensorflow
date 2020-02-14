@@ -40,7 +40,6 @@ class Nice:
                 z = z * tf.exp(self.scale)
             return z, log_det_J
 
-
     def generate(self, z):
         """Transformation g: Z -> X (inverse of f).
 
@@ -77,6 +76,17 @@ class Nice:
         z, log_det_J = self.inv_generate(x)
         log_ll = tf.reduce_sum(self.prior.log_prob(z), axis=1)
         return log_ll + log_det_J
+
+    # def sample(self, size):
+    #     """Generates samples.
+    #
+    #     Args:
+    #         size: number of samples to generate.
+    #     Returns:
+    #         samples from the data space X.
+    #     """
+    #     z = self.prior.sample((size, self.in_out_dim))
+    #     return self.generate(z)
 
     def infer(self, x):
         """Forward pass.

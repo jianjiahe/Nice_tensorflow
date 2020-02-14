@@ -2,16 +2,13 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="65113c4b-3bb9-418a-8971-3757de83c8fc" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/test_batch.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/utils/batch.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/infer.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/utils/InferBase.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/config.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/datasets/input_mnist.py" beforeDir="false" afterPath="$PROJECT_DIR$/datasets/input_mnist.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/models/nice.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/nice.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/utils/basis.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/utils/couple.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/utils/couple.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/train.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utils/basis_util.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/basis_util.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils/batch.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/batch.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -63,11 +60,18 @@
       <updated>1581491583366</updated>
       <workItem from="1581491584647" duration="14896000" />
       <workItem from="1581550458045" duration="2458000" />
-      <workItem from="1581553180412" duration="22345000" />
+      <workItem from="1581553180412" duration="22687000" />
+      <workItem from="1581644701127" duration="4984000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="1" />
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="1554" y="280" width="732" height="840" key="find.popup" timestamp="1581649852358">
+      <screen x="0" y="27" width="2560" height="1348" />
+    </state>
+    <state x="1554" y="280" width="732" height="840" key="find.popup/0.27.2560.1348@0.27.2560.1348" timestamp="1581649852358" />
   </component>
 </project>

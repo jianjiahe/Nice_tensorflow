@@ -12,11 +12,17 @@ class DataBasic:
 
 class TrainBasic:
     optimizer = 'adam'
-    batch_size = 200
     dataset = 'biaobei'
+    latent = 'logistic'
+    batch_size = 200
     runname = ''
     checkpoint_dir = '/home/the/Projects/cache/nice/checkpoints'
-
+    filename = '%s_' % dataset \
+               + 'bs%d_' % batch_size \
+               + '%s_' % latent \
+               + 'cp%d_' % ModelBasic.couple_layers \
+               + 'md%d_' % ModelBasic.mid_dim \
+               + 'hd%d_' % ModelBasic.hidden_dim
 
 
 

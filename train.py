@@ -13,6 +13,7 @@ from utils.basis_util import basic_config, check_param_num, check_restore_params
 from utils.batch import MiniBatch
 
 
+from infer import Infer
 from models.nice import Nice
 from config import TrainBasic, DataBasic, ModelBasic
 
@@ -251,14 +252,16 @@ class Trainer:
 
                     if step % self.epoch_size == 0 and epoch % 50 == 0:
                         # if step % 1 == 0 and epoch % 1 == 0:
-                        # # validation
-                        # self._training = False
-                        # loss_val, step, epoch, ms, ls = sess.run([self.loss, self.global_step, self.global_epoch, self.merged_summary, self.loss_summary])
-                        # self._training = True
-                        # bit_per_dim = (loss_val + np.log(256.) * ModelBasic.in_out_dim) \
-                        #               / (ModelBasic.in_out_dim * np.log(2.))
-                        # logging.info(
-                        #     'Val: loss: {0}, bit_per_dim: {1}'.format(loss_val, bit_per_dim))
+                        # validation
+                        self._training = False
+                        loss_val, step, epoch, ms, ls = sess.run([self.loss, self.global_step, self.global_epoch, self.merged_summary, self.loss_summary])
+                        self._training = True
+                        bit_per_dim = (loss_val + np.log(256.) * ModelBasic.in_out_dim) \
+                                      / (ModelBasic.in_out_dim * np.log(2.))
+                        logging.info(
+                            'Val: loss: {0}, bit_per_dim: {1}'.format(loss_val, bit_per_dim))
+                        #TODO: evalution
+
 
                         self._save_checkpoint(sess)
                         self._train_finalize()
@@ -280,7 +283,12 @@ class Trainer:
         self.has_built = False
 
     def evaluate(self, epoch, step):
-        pass
+        infer = Infer(corpus_name=self.corpus_name,
+                          run_name=self.run_name,
+                          sample_num=self.batch_size,
+                          sample_dim=self.in_out_dim)
+
+        infer.generate(epoch, step)
         # validition_mini_batch = MiniBatch(corpus_name=self.corpus_name, datacsv_name=DatadirBasic.validitiondata_csv, batch_size=self.batch_size)
         #
         # infer = Infer(corpus_name=self.corpus_name, run_name=self.run_name,

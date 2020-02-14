@@ -19,7 +19,7 @@ def dequantize(x):
     return (x * 255. + noise) / 256.
 
 
-def prepare_data(x, mean, training=False):
+def prepare_data(x, mean, training=False, evaluating=False):
     """Prepares data .
     In training mode, flatten and dequantize the input.
     In inference mode, reshape tensor into image size.
@@ -31,20 +31,19 @@ def prepare_data(x, mean, training=False):
     Returns:
         transformed data.
     """
-    if training:
+    if evaluating:
+        assert len(list(x.shape)) == 2
+        [B, W] = list(x.shape)
+        assert W == 1 * 28 * 28
+        x += mean
+        x = x.reshape((B, 1, 28, 28))
+    else:
         # assert len(list(x.shape)) == 4
         # [B, C, H, W] = list(x.shape)
         # assert [C, H, W] == [1, 28, 28]
+        # x = x.reshape((B, C*H*W))
         x = dequantize(x)
-        # x = x.reshape((B, C * H * W))
         x -= mean
-    else:
-        # assert len(list(x.shape)) == 2
-        # [B, W] = list(x.shape)
-        # assert W == 1 * 28 * 28
-        # x += mean
-        x -= mean
-        # x = x.reshape((B, 1, 28, 28))
     return x
 
 
